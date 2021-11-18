@@ -1,14 +1,30 @@
 #include <iostream>
+#include<cmath>
 #include "gurobi_c++.h"
+#include "rational.cpp"
 using namespace std;
 
+Rational toRatio(double value, int n) { // 1.41429
+        Rational l((int)value, 1);
+        Rational r((int)value + 1, 1);
+        while(l.den + r.den <= n){
+            Rational ratio(l.num + r.num, l.den + r.den);
+            if(ratio.num == ratio.den * value) return ratio;
+            if(ratio.num < ratio.den * value) l = ratio;
+            else r = ratio;
+        }
+        return r;
+}
+
 int main() {
+    Rational a = toRatio(2.0/3, 10000);
+    cout << a.num << " " << a.den << '\n';
     try {
         vector<int> Machines = {1, 2, 3};
         vector<int> Jobs = {1, 2, 3, 4, 5, 6};
 
         GRBEnv env = GRBEnv(true);
-        env.set("LogFile", "result.log");
+        env.set("LogFile", "result.json");
         env.start();
 
         // Create an empty model
@@ -53,7 +69,14 @@ int main() {
         m.optimize();
         m.write("result.lp");
 
-    
+        auto vars = m.getVars();
+       for (int i = 0; i < m.get(GRB_IntAttr_NumVars); i++)
+            cout << vars[i].get(GRB_StringAttr_VarName) << " " << vars[i].get(GRB_DoubleAttr_X) << '\n';
+
+        auto constrs = m.getConstrs();
+        for (int i = 0; i < m.get(GRB_IntAttr_NumConstrs); i++)
+            if(constrs[i].get(GRB_IntAttr_CBasis) == -1)
+                cout << constrs[i].get(GRB_StringAttr_ConstrName) << " " << constrs[i].get(GRB_DoubleAttr_Pi) << '\n';
 
     } catch (GRBException e) {
         cout << "Error code = " << e.getErrorCode() << endl;
