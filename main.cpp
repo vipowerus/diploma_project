@@ -161,7 +161,7 @@ int main() {
         m.setObjective((GRBLinExpr) rho, GRB_MAXIMIZE);
         m.update();
 
-        auto expressions = model.templates.at("expressions").get<vector<vector<string>>>();
+        auto expressions = model.model.at("expressions").get<vector<vector<string>>>();
         for (auto expr : expressions){
             GRBLinExpr lhs_expr = make_constraint(expr.front(), m);
             m.addConstr(lhs_expr, expr[1].front(), stod(expr[2]), expr.back());
