@@ -107,16 +107,16 @@ void prepare_coeffs_and_var_names(const string& str, vector<double> &coeffs, vec
     }
 }
 
-GRBVar* prepare_operations(const vector<string>& names, GRBModel &m){
+GRBVar* prepare_operations(const vector<string>& names, GRBModel *m){
     GRBVar * operations = (GRBVar *) malloc(sizeof(GRBVar) * names.size());
     if(!operations) exit(1);
     for (int i = 0; i < names.size(); ++i) {
-        operations[i] = m.getVarByName(names[i]);
+        operations[i] = m->getVarByName(names[i]);
     }
     return operations;
 }
 
-GRBLinExpr make_constraint(const string& expr, GRBModel &m){
+GRBLinExpr make_constraint(const string& expr, GRBModel *m){
     vector<double> coeffs;
     vector<string> vars_names;
     prepare_coeffs_and_var_names(expr, coeffs, vars_names);

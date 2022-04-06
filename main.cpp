@@ -138,52 +138,57 @@ string apply_permutation(string path, const vector<int> &machines_permutation, c
     return result;
 }
 
+GRBModel * create_GRBModel(const Model& model){
+    GRBEnv env = GRBEnv(true);
+    env.set("LogFile", "result.json");
+    env.set("OutputFlag", "0");
+    env.start();
+
+    auto* m = new GRBModel(env);
+
+    GRBVar ** p = GRBVars_matrix_malloc(model.M, model.J);
+    for (size_t i = 0; i < model.M; i++)
+        for (size_t j = 0; j < model.J; j++)
+            p[i][j] = m->addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, indexes_pair_to_string({i, j}));
+    GRBVar rho = m->addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "rho");
+
+    m->setObjective((GRBLinExpr) rho, GRB_MAXIMIZE);
+    m->update();
+    return m;
+}
+
 int main() {
     Model model;
     model.build_adjacency_matrix();
     model.make_suitable_paths();
 
     try {
-        GRBEnv env = GRBEnv(true);
-        env.set("LogFile", "result.json");
-        env.set("OutputFlag", "0");
-        env.start();
-
-        // Create an empty model
-        GRBModel m = GRBModel(env);
-
-        GRBVar ** p = GRBVars_matrix_malloc(model.M, model.J);
-        for (size_t i = 0; i < model.M; i++)
-            for (size_t j = 0; j < model.J; j++)
-                p[i][j] = m.addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, indexes_pair_to_string({i, j}));
-        GRBVar rho = m.addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "rho");
-
-        m.setObjective((GRBLinExpr) rho, GRB_MAXIMIZE);
-        m.update();
+        auto GRB_instance = create_GRBModel(model);
 
         auto expressions = model.model.at("expressions").get<vector<vector<string>>>();
         for (auto expr : expressions){
-            GRBLinExpr lhs_expr = make_constraint(expr.front(), m);
-            m.addConstr(lhs_expr, expr[1].front(), stod(expr[2]), expr.back());
+            GRBLinExpr lhs_expr = make_constraint(expr.front(), GRB_instance);
+            GRB_instance->addConstr(lhs_expr, expr[1].front(), stod(expr[2]), expr.back());
         }
 
         // m.addConstr(rho <= p[1][1] + p[0][1] + p[0][2], "P_1");
-        GRBLinExpr lhs_expr = make_constraint(model.suitable_paths.front() + "- rho", m);
-        m.addConstr(lhs_expr, '>', 0, "P_1");
+        GRBLinExpr lhs_expr = make_constraint(model.suitable_paths.front() + "- rho", GRB_instance);
+        GRB_instance->addConstr(lhs_expr, '>', 0, "P_1");
         
-        m.addConstr(rho <= p[0][1] + p[0][2] + p[1][2], "P_12");
+        GRB_instance->addConstr(GRB_instance->getVarByName("rho") <= GRB_instance->getVarByName("a2")
+            + GRB_instance->getVarByName("a3") + GRB_instance->getVarByName("b3"), "P_12");
 
-        m.update();
-        m.optimize();
-        m.write("result.lp");
+        GRB_instance->update();
+        GRB_instance->optimize();
+        GRB_instance->write("result.lp");
 
         cout << "PARAMS_START ..." << "\n";
-        auto vars = m.getVars();
-        for (int i = 0; i < m.get(GRB_IntAttr_NumVars); i++)
+        auto vars = GRB_instance->getVars();
+        for (int i = 0; i < GRB_instance->get(GRB_IntAttr_NumVars); i++)
             cout << vars[i].get(GRB_StringAttr_VarName) << " " << vars[i].get(GRB_DoubleAttr_X) << '\n';
 
-        auto constrs = m.getConstrs();
-        for (int i = 0; i < m.get(GRB_IntAttr_NumConstrs); i++)
+        auto constrs = GRB_instance->getConstrs();
+        for (int i = 0; i < GRB_instance->get(GRB_IntAttr_NumConstrs); i++)
             if (constrs[i].get(GRB_IntAttr_CBasis) == -1)
                 cout << constrs[i].get(GRB_StringAttr_ConstrName) << " " << constrs[i].get(GRB_DoubleAttr_Pi) << '\n';
 
