@@ -100,8 +100,17 @@ void prepare_coeffs_and_var_names(const string& str, vector<double> &coeffs, vec
         do{
             i++;
         }while(!is_sign(part[i]));
-        double coeff = stod(part.substr(0, i));
-        coeffs.push_back(coeff * sign);
+
+        string coeff = part.substr(0, i);
+        auto slash_position = coeff.find('/');
+        if(slash_position != -1){
+            double num = stod(coeff.substr(0, slash_position));
+            double denum = stod(coeff.substr(slash_position + 1, i));
+            coeffs.push_back(sign * num / denum);
+        } else{
+            coeffs.push_back(sign * stod(part.substr(0, i)));
+        }
+
         string operation = part.substr(i + 1, part.length());
         vars.push_back(operation);
     }
