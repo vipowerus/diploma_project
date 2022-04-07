@@ -14,7 +14,7 @@ public:
     int M, J;
     int **P;
     nlohmann::json model, templates;
-    std::vector<std::string> base_path, bounds, all_vertexes = {"a1", "a2", "a3", "b1", "b2", "b3", "c1", "c2", "c3"}, suitable_paths;
+    std::vector<std::string> base_path, bounds, all_vertexes, suitable_paths;
     std::deque<int> way;
 
     Model();

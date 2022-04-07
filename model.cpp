@@ -19,6 +19,7 @@ Model::Model() {
     this->base_path = templates.at("base").get<std::vector<std::string>>();
     this->bounds = templates.at("base").get<std::vector<std::string>>();
     this->P = nullptr;
+    all_vertexes = split(model.at("vertexes").get<string>(), ' ');
 }
 
 int **Model::build_adjacency_matrix() {
