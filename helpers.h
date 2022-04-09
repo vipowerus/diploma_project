@@ -17,8 +17,6 @@ int **matrix_malloc(int N);
 
 void matrix_output(int **Matrix, int N);
 
-int index_from_str(std::string str);
-
 std::string indexes_pair_to_string(std::pair<int, int> indexes);
 
 GRBVar **GRBVars_matrix_malloc(int M, int J);

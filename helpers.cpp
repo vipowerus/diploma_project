@@ -9,8 +9,6 @@
 
 using namespace std;
 
-extern vector<string> all_vertexes;
-
 int **matrix_malloc(int N) {
     int **Matrix = (int **) malloc(sizeof(int *) * N);
     if (!Matrix) exit(1);
@@ -58,14 +56,6 @@ std::vector<std::string> split(const std::string &s, char divider) {
     std::vector<std::string> elems;
     split(s, divider, elems);
     return elems;
-}
-
-int index_from_str(string str) {
-    auto ind = find(all_vertexes.begin(), all_vertexes.end(), str);
-    if (ind != all_vertexes.end())
-        return ind - all_vertexes.begin();
-    all_vertexes.push_back(str);
-    return all_vertexes.size() - 1;
 }
 
 pair<int, int> index_pair_from_str(string str) { // useless for now

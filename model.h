@@ -24,6 +24,10 @@ public:
     void make_suitable_paths();
 
 private:
+    int index_from_str(std::string str);
+
+    void build_all_vertexes_from_missed_vertexes(const std::string&);
+
     std::vector<int> starting_vertexes() const;
 
     void select_suitable_paths(int start, int v, int W);

@@ -11,77 +11,7 @@
 using namespace std;
 using json = nlohmann::json;
 
-vector<string> all_vertexes = {"a1", "a2", "a3", "b1", "b2", "b3", "c1", "c2", "c3"};
 deque<int> way;
-
-int **build_adjacency_matrix(vector<string> base_path, int N) { // useless?
-    int **Matrix = matrix_malloc(N);
-    for (auto &path: base_path) {
-        vector<string> st = split(path, ' ');
-        int prev = -1;
-        for (const string &str: st) {
-            if (prev == -1) {
-                prev = index_from_str(str);
-                continue;
-            }
-            auto ind = index_from_str(str);
-            Matrix[prev][ind] = 1; // номер параметра
-            prev = ind;
-        }
-    }
-//    matrix_output(Matrix, N);
-    return Matrix;
-}
-
-bool check_way(const vector<string> &bounds) { // useless?
-    string path;
-    for (int i = 0; i < way.size(); ++i) {
-        if (i == way.size() - 1) {
-            path += all_vertexes[way[i]];
-            break;
-        }
-        path += all_vertexes[way[i]] + " ";
-    }
-    for (auto &bound: bounds)
-        if (path == bound) return false;
-    return true;
-}
-
-void
-make_suitable_paths(int **P, int start, int v, int W, const vector<string> &bounds, vector<string> &suitable_ways) { // useless?
-    way.push_back(start);
-    int adj_counter = 0;
-    for (int i = 0; i < v; ++i)
-        if (P[start][i]) {
-            adj_counter++;
-            make_suitable_paths(P, i, v, W, bounds, suitable_ways);
-        }
-    if (!adj_counter && check_way(bounds)) {
-        string suitable_way;
-        for (int i: way) {
-            suitable_way += all_vertexes[i] + " ";
-            cout << all_vertexes[i] << ' '; // все вершины + матрица = путь с параметрами
-        }
-        suitable_ways.push_back(suitable_way);
-        cout << '\n';
-    }
-    way.pop_back();
-}
-
-vector<int> starting_vertexes(int **P, int M, int J) { // useless?
-    vector<int> vertexes;
-    for (int j = 0; j < J * M; ++j) { // !!!
-        int not_zero = 0;
-        for (int i = 0; i < J * M; ++i) { // !!!
-            if (P[i][j] == 1) {
-                not_zero++;
-                break;
-            }
-        }
-        if (not_zero == 0) vertexes.push_back(j);
-    }
-    return vertexes;
-}
 
 void rec_permutations(vector<int> arr, deque<vector<int>> permutations_stack, vector<vector<int>> &permutations) {
     auto perm = permutations_stack.back();

@@ -19,11 +19,27 @@ Model::Model() {
     this->base_path = templates.at("base").get<std::vector<std::string>>();
     this->bounds = templates.at("base").get<std::vector<std::string>>();
     this->P = nullptr;
-    all_vertexes = split(model.at("vertexes").get<string>(), ' ');
+
+    if (model.contains("work_vertexes")) all_vertexes = split(model.at("work_vertexes").get<string>(), ' ');
+    else if (model.contains("missed_vertexes")) build_all_vertexes_from_missed_vertexes(model.at("missed_vertexes").get<string>());
+    else {
+        cout << "Input vertexes are wrong. Exit...";
+        exit(1);
+    }
+}
+
+int Model::index_from_str(string str) {
+    auto ind = find(all_vertexes.begin(), all_vertexes.end(), str);
+    if (ind != all_vertexes.end()) {
+        auto test = all_vertexes.begin();
+        return ind - all_vertexes.begin();
+    }
+    all_vertexes.push_back(str);
+    return all_vertexes.size() - 1;
 }
 
 int **Model::build_adjacency_matrix() {
-    int **Matrix = matrix_malloc(this->M * this->J);
+    int **Matrix = matrix_malloc(all_vertexes.size());
     for (auto &path: base_path) {
         vector<string> st = split(path, ' ');
         int prev = -1;
@@ -48,9 +64,9 @@ void Model::make_suitable_paths() {
 
 std::vector<int> Model::starting_vertexes() const {
     vector<int> vertexes;
-    for (int j = 0; j < J * M; ++j) { // !!!
+    for (int j = 0; j < all_vertexes.size(); ++j) {
         int not_zero = 0;
-        for (int i = 0; i < J * M; ++i) { // !!!
+        for (int i = 0; i < all_vertexes.size(); ++i) {
             if (P[i][j] == 1) {
                 not_zero++;
                 break;
@@ -93,4 +109,16 @@ bool Model::check_way() {
     for (auto &bound: bounds)
         if (path == bound) return false;
     return true;
+}
+
+void Model::build_all_vertexes_from_missed_vertexes(const string& missed_vertexes) {
+    for (int i = 0; i < M; ++i) {
+        for (int j = 0; j < J; ++j) {
+            all_vertexes.push_back(indexes_pair_to_string({i, j}));
+        }
+    }
+    for(const auto& vertex : split(missed_vertexes, ' ')){
+        auto ind = std::find(all_vertexes.begin(), all_vertexes.end(), vertex);
+        all_vertexes.erase(ind);
+    }
 }
