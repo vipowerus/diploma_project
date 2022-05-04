@@ -17,7 +17,7 @@ Model::Model() {
     this->M = model.at("M").get<int>();
     this->J = model.at("J").get<int>();
     this->base_path = templates.at("base").get<std::vector<std::string>>();
-    this->bounds = templates.at("base").get<std::vector<std::string>>();
+    this->bounds = model.at("bounds").get<std::vector<std::string>>();
     this->P = nullptr;
 
     if (model.contains("work_vertexes")) all_vertexes = split(model.at("work_vertexes").get<string>(), ' ');
