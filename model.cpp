@@ -99,15 +99,44 @@ void Model::select_suitable_paths(int start, int v, int W) {
 
 bool Model::check_way() {
     string path;
-    for (int i = 0; i < way.size(); ++i) {
-        if (i == way.size() - 1) {
-            path += all_vertexes[way[i]];
-            break;
-        }
+    for (int i = 0; i < way.size() - 1; ++i)
         path += all_vertexes[way[i]] + " ";
+    path += all_vertexes[way[way.size() - 1]];
+
+    vector<double> path_coeffs;
+    vector<string> path_vars_names;
+    prepare_coeffs_and_var_names(path, path_coeffs, path_vars_names);
+
+    for (auto &bound: bounds) {
+        if (path.length() > bound.length()) continue;
+        bool need_to_stop = true;
+        vector<double> bound_coeffs;
+        vector<string> bound_vars_names;
+        prepare_coeffs_and_var_names(bound, bound_coeffs, bound_vars_names);
+        for (int bound_var_ind = 0; bound_var_ind < bound_vars_names.size(); bound_var_ind++) {
+            int var_ind;
+            for (var_ind = 0; var_ind < path_vars_names.size(); var_ind++)
+                if (path_vars_names[var_ind] == bound_vars_names[bound_var_ind]) break;
+
+            if ((var_ind == path_vars_names.size() && bound_coeffs[bound_var_ind] < 0)  ||
+            path_coeffs[var_ind] > bound_coeffs[bound_var_ind]){
+                need_to_stop = false;
+                break;
+            }
+        }
+        for (int path_var_ind = 0; path_var_ind < bound_vars_names.size(); path_var_ind++) {
+            int var_ind;
+            for (var_ind = 0; var_ind < bound_vars_names.size(); var_ind++)
+                if (bound_vars_names[var_ind] == path_vars_names[path_var_ind]) break;
+
+            if ((var_ind == bound_vars_names.size() && path_coeffs[path_var_ind] > 0)  ||
+            bound_coeffs[var_ind] > path_coeffs[path_var_ind]){
+                need_to_stop = false;
+                break;
+            }
+        }
+        if (need_to_stop) return false;
     }
-    for (auto &bound: bounds)
-        if (path == bound) return false;
     return true;
 }
 
