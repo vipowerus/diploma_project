@@ -192,7 +192,13 @@ void Model::process_preset(string str, vector<double> &coeffs, vector<string> &v
                 vars.push_back(v);
             }
         }
-
+        return;
+    }
+    if (str == "Delta") {
+        for (auto v : all_vertexes) {
+            coeffs.push_back(current_coeff);
+            vars.push_back(v);
+        }
     }
     if (str[0] == 'D') {
         for (auto v : all_vertexes) {
