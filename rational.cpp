@@ -81,23 +81,38 @@ class Rational {
         return num * other.den < other.num * den;
     }
 
+    bool operator<(const double &other) const {
+        return num < other * den;
+    }
+
     bool operator>(const Rational &other) const {
         return other < *this;
     }
+    bool operator>(const double &other) const {
+        return num > other * den;
+    }
 
-    bool operator<=(const Rational &other) {
+    bool operator<=(const Rational &other) const {
         return !(other < *this);
     }
 
-    bool operator>=(const Rational &other) {
+    bool operator<=(const double &other) const {
+        return !(*this > other);
+    }
+
+    bool operator>=(const Rational &other) const {
         return !(*this < other);
     }
 
-    bool operator==(const Rational &other) {
+    bool operator>=(const double &other) const {
+        return !(*this < other);
+    }
+
+    bool operator==(const Rational &other) const {
         return num == other.num && den == other.den;
     }
 
-    bool operator!=(const Rational &other) {
+    bool operator!=(const Rational &other) const {
         return !(*this == other);
     }
 
