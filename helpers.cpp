@@ -3,6 +3,7 @@
 //
 #include <iostream>
 #include <vector>
+#include <map>
 #include <sstream>
 #include "gurobi_c++.h"
 #include <algorithm>
@@ -73,54 +74,3 @@ bool is_sign(char c){
     return false;
 }
 
-void prepare_coeffs_and_var_names(const string& str, vector<double> &coeffs, vector<string> &vars){
-    vector<string> divided_expression = split(str, ' ');
-    int sign = 1;
-    for (auto part : divided_expression){
-        if(isalpha(part.front())){
-            coeffs.push_back(sign);
-            vars.push_back(part);
-            continue;
-        }
-        if(part.length() == 1){
-            sign = part == "+" ? 1 : -1;
-            continue;
-        }
-        int i = 0;
-        do{
-            i++;
-        }while(!is_sign(part[i]));
-
-        string coeff = part.substr(0, i);
-        auto slash_position = coeff.find('/');
-        if(slash_position != -1){
-            double num = stod(coeff.substr(0, slash_position));
-            double denum = stod(coeff.substr(slash_position + 1, i));
-            coeffs.push_back(sign * num / denum);
-        } else{
-            coeffs.push_back(sign * stod(part.substr(0, i)));
-        }
-
-        string operation = part.substr(i + 1, part.length());
-        vars.push_back(operation);
-    }
-}
-
-GRBVar* prepare_operations(const vector<string>& names, GRBModel *m){
-    GRBVar * operations = (GRBVar *) malloc(sizeof(GRBVar) * names.size());
-    if(!operations) exit(1);
-    for (int i = 0; i < names.size(); ++i) {
-        operations[i] = m->getVarByName(names[i]);
-    }
-    return operations;
-}
-
-GRBLinExpr make_constraint(const string& expr, GRBModel *m){
-    vector<double> coeffs;
-    vector<string> vars_names;
-    prepare_coeffs_and_var_names(expr, coeffs, vars_names);
-    GRBVar* operations = prepare_operations(vars_names, m);
-    GRBLinExpr result;
-    result.addTerms(&coeffs[0], operations, coeffs.size());
-    return result;
-}

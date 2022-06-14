@@ -29,7 +29,7 @@ void rec_permutations(vector<int> arr, deque<vector<int>> permutations_stack, ve
     } while (std::next_permutation(ind_left, ind_right + 1));
 }
 
-void initialize_templates_arrays(vector<int> &machines, vector<int> &jobs, int M, int J) {
+void initialize_permutations_templates_arrays(vector<int> &machines, vector<int> &jobs, int M, int J) {
     for (int i = 0; i < M; ++i)
         machines.push_back(i + 1);
     for (int i = 0; i < J; ++i)
@@ -39,7 +39,7 @@ void initialize_templates_arrays(vector<int> &machines, vector<int> &jobs, int M
 void build_permutations(json templates, int M, int J, vector<vector<int>> &machines_permutations,
                           vector<vector<int>> &jobs_permutations) {
     vector<int> machines, jobs;
-    initialize_templates_arrays(machines, jobs, M, J);
+    initialize_permutations_templates_arrays(machines, jobs, M, J);
     deque<vector<int>> machines_perm_stack, jobs_perm_stack;
 
     auto machines_permutations_base = templates.at("Machines").get<vector<vector<int>>>();
@@ -68,23 +68,22 @@ string apply_permutation(string path, const vector<int> &machines_permutation, c
     return result;
 }
 
-GRBModel * create_GRBModel(const Model& model){
-    GRBEnv env = GRBEnv(true);
-    env.set("LogFile", "result.json");
-    env.set("OutputFlag", "0");
-    env.start();
+double calc_path_length(const string& path, GRBVar * vars, const Model& model) {
+    vector<string> divided_string = split(path, ' ');
+    vector<string> var_names;
+    vector<double> var_values;
+    // @TODO check upper bound
+    for (int i = 0; i < model.all_vertexes.size(); ++i) {
+        var_names.push_back(vars[i].get(GRB_StringAttr_VarName));
+        var_values.push_back(vars[i].get(GRB_DoubleAttr_X));
+    }
 
-    auto* m = new GRBModel(env);
+    double sum = 0;
+    for (const auto& vertex: divided_string)
+        for (int i = 0; i < var_names.size(); ++i)
+            if (vertex == var_names[i]) sum += var_values[i];
 
-    GRBVar ** p = GRBVars_matrix_malloc(model.M, model.J);
-    for (size_t i = 0; i < model.M; i++)
-        for (size_t j = 0; j < model.J; j++)
-            p[i][j] = m->addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, indexes_pair_to_string({i, j}));
-    GRBVar rho = m->addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "rho");
-
-    m->setObjective((GRBLinExpr) rho, GRB_MAXIMIZE);
-    m->update();
-    return m;
+    return sum;
 }
 
 int main() {
@@ -92,35 +91,36 @@ int main() {
     model.build_adjacency_matrix();
     model.make_suitable_paths();
 
+    vector<vector<int>> machines_permutations;
+    vector<vector<int>> jobs_permutations;
+    build_permutations(model.model, model.M, model.J, machines_permutations, jobs_permutations);
+
     try {
-        auto GRB_instance = create_GRBModel(model);
-
-        auto expressions = model.model.at("expressions").get<vector<vector<string>>>();
-        for (auto expr : expressions){
-            GRBLinExpr lhs_expr = make_constraint(expr.front(), GRB_instance);
-            GRB_instance->addConstr(lhs_expr, expr[1].front(), stod(expr[2]), expr.back());
-        }
-
-        // m.addConstr(rho <= p[1][1] + p[0][1] + p[0][2], "P_1");
-        GRBLinExpr lhs_expr = make_constraint(model.suitable_paths.front() + "- rho", GRB_instance);
-        GRB_instance->addConstr(lhs_expr, '>', 0, "P_1");
-        
-        GRB_instance->addConstr(GRB_instance->getVarByName("rho") <= GRB_instance->getVarByName("a2")
-            + GRB_instance->getVarByName("a3") + GRB_instance->getVarByName("b3"), "P_12");
-
-        GRB_instance->update();
-        GRB_instance->optimize();
-        GRB_instance->write("result.lp");
+        model.process_expressions();
+        model.GRB_instance->write("result.lp");
 
         cout << "PARAMS_START ..." << "\n";
-        auto vars = GRB_instance->getVars();
-        for (int i = 0; i < GRB_instance->get(GRB_IntAttr_NumVars); i++)
+        auto vars = model.GRB_instance->getVars();
+        for (int i = 0; i < model.GRB_instance->get(GRB_IntAttr_NumVars); i++)
             cout << vars[i].get(GRB_StringAttr_VarName) << " " << vars[i].get(GRB_DoubleAttr_X) << '\n';
 
-        auto constrs = GRB_instance->getConstrs();
-        for (int i = 0; i < GRB_instance->get(GRB_IntAttr_NumConstrs); i++)
+        auto constrs = model.GRB_instance->getConstrs();
+        for (int i = 0; i < model.GRB_instance->get(GRB_IntAttr_NumConstrs); i++)
             if (constrs[i].get(GRB_IntAttr_CBasis) == -1)
                 cout << constrs[i].get(GRB_StringAttr_ConstrName) << " " << constrs[i].get(GRB_DoubleAttr_Pi) << '\n';
+
+        double max_length = 0;
+        for (const auto& machine_perm: machines_permutations) {
+            for (const auto& job_perm: jobs_permutations) {
+                    for (auto path: model.suitable_paths) {
+
+                        string path_with_perm = apply_permutation(path, machine_perm, job_perm);
+                    double length = calc_path_length(path_with_perm, vars, model);
+                    cout << length << '\n';
+                }
+                    cout << '\n';
+            }
+        }
 
     } catch (GRBException e) {
         cout << "Error code = " << e.getErrorCode() << endl;

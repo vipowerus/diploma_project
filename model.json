@@ -1,7 +1,8 @@
 {
   "M" : 2,
   "J" : 3,
-  "vertexes" : "a1 a2 a3 b1 b2 b3",
+  "work_vertexes" : "a1 a2 a3 b1 b2 b3",
+  "missed_vertexes": "",
   "bounds": [
     "a1 a2 a3",
     "b2 b3 b1",
@@ -10,14 +11,13 @@
     "b3 a3"
   ],
   "expressions": [
-    ["- 2222/33333333*a1 + b1 - a2 - b2", ">", "0", "AC_1"],
+    ["a1 + b1 - a2 - b2", ">", "0", "AC_1"],
     ["a2 + b2 - a3 - b3", ">", "0", "AC_2"],
-    ["a1 + a2 + a3", "<", "1", "L_1"],
-    ["b1 + b2 + b3", "<", "1", "L_2"],
-    ["a1 + b1", "<", "1", "D_1"],
-    ["a2 + b2", "<", "1", "D_2"],
-    ["a3 + b3", "<", "1", "D_3"]
+    ["Pmax", "<", "1", "Pmax"],
+    ["Lmax", "<", "1", "Lmax"],
+    ["Dmax", "<", "1", "Lmax"]
   ],
+  "objective_augmentation": "Dmax",
   "Machines": [
     [1, 2]
   ],
