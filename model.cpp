@@ -26,6 +26,26 @@ Model::Model() {
         cout << "Input vertexes are wrong. Exit...";
         exit(1);
     }
+
+    create_GRBModel();
+}
+
+void Model::create_GRBModel(){
+    GRBEnv env = GRBEnv(true);
+    env.set("LogFile", "result.json");
+    env.set("OutputFlag", "0");
+    env.start();
+
+    GRB_instance = new GRBModel(env);
+
+    GRBVar ** p = GRBVars_matrix_malloc(M, J);
+    for (size_t i = 0; i < M; i++)
+        for (size_t j = 0; j < J; j++)
+            p[i][j] = GRB_instance->addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, indexes_pair_to_string({i, j}));
+    GRBVar rho = GRB_instance->addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "rho");
+
+    GRB_instance->setObjective((GRBLinExpr) rho, GRB_MAXIMIZE);
+    GRB_instance->update();
 }
 
 int Model::index_from_str(string str) {
@@ -150,4 +170,139 @@ void Model::build_all_vertexes_from_missed_vertexes(const string& missed_vertexe
         auto ind = std::find(all_vertexes.begin(), all_vertexes.end(), vertex);
         all_vertexes.erase(ind);
     }
+}
+
+bool Model::is_sign(char c) {
+    if(c == '+' || c == '-' || c == '*')
+        return true;
+    return false;
+}
+
+bool Model::is_preset(string str) {
+    if (presets.find(str) != presets.end()) return true;
+    if (str[0] == 'L' || str[0] == 'D') return true;
+    return false;
+}
+
+void Model::process_preset(string str, vector<double> &coeffs, vector<string> &vars, double current_coeff) {
+    if (str[0] == 'L') {
+        for (auto v : all_vertexes) {
+            if (48 + str[1] == v[0]) {
+                coeffs.push_back(current_coeff);
+                vars.push_back(v);
+            }
+        }
+
+    }
+    if (str[0] == 'D') {
+        for (auto v : all_vertexes) {
+            if (str[1] == v[1]) {
+                coeffs.push_back(current_coeff);
+                vars.push_back(v);
+            }
+        }
+    }
+}
+
+void Model::prepare_coeffs_and_var_names(const string& str, vector<double> &coeffs, vector<string> &vars) {
+    vector<string> divided_expression = split(str, ' ');
+    int sign = 1;
+    double current_coeff = 1;
+    for (auto part : divided_expression) {
+        if (isalpha(part.front())) {
+            if (is_preset(part)) {
+                process_preset(part, coeffs, vars, sign * current_coeff);
+                continue;
+            }
+            coeffs.push_back(sign);
+            vars.push_back(part);
+            continue;
+        }
+        if (part.length() == 1) {
+            sign = part == "+" ? 1 : -1;
+            continue;
+        }
+        int i = 0;
+        do {
+            i++;
+        } while(!is_sign(part[i]));
+
+        string coeff = part.substr(0, i);
+        auto slash_position = coeff.find('/');
+        if (slash_position != -1) {
+            double num = stod(coeff.substr(0, slash_position));
+            double denum = stod(coeff.substr(slash_position + 1, i));
+            current_coeff = num / denum;
+            coeffs.push_back(sign * current_coeff);
+        } else {
+            current_coeff = stod(part.substr(0, i));
+            coeffs.push_back(sign * current_coeff);
+        }
+        string operation = part.substr(i + 1, part.length());
+        vars.push_back(operation);
+    }
+}
+
+GRBVar* Model::prepare_operations(const vector<string>& names) {
+    GRBVar * operations = (GRBVar *) malloc(sizeof(GRBVar) * names.size());
+    if (!operations) exit(1);
+    for (int i = 0; i < names.size(); ++i)
+        operations[i] = GRB_instance->getVarByName(names[i]);
+    return operations;
+}
+
+GRBLinExpr Model::make_constraint(const string& expr) {
+    vector<double> coeffs;
+    vector<string> vars_names;
+    prepare_coeffs_and_var_names(expr, coeffs, vars_names);
+    GRBVar* operations = prepare_operations(vars_names);
+    GRBLinExpr result;
+    result.addTerms(&coeffs[0], operations, coeffs.size());
+    return result;
+}
+
+void Model::process_complex_expressions(vector<string> expr) {
+    if (expr.front() == "Lmax") {
+        for (int i = 1; i <= M; ++i) {
+            GRBLinExpr lhs_expr = make_constraint("L" + to_string(i));
+            GRB_instance->addConstr(lhs_expr, expr[1].front(), stod(expr[2]), "L" + to_string(i));
+        }
+    }
+    if (expr.front() == "Dmax") {
+        for (int i = 1; i <= J; ++i) {
+            GRBLinExpr lhs_expr = make_constraint("D" + to_string(i));
+            GRB_instance->addConstr(lhs_expr, expr[1].front(), stod(expr[2]), "D" + to_string(i));
+        }
+    }
+    if (expr.front() == "Pmax") {
+        for (const auto& vertex : all_vertexes) {
+            GRBLinExpr lhs_expr = make_constraint(vertex);
+            GRB_instance->addConstr(lhs_expr, expr[1].front(), stod(expr[2]), vertex);
+        }
+    }
+}
+
+void Model::process_expressions() {
+    auto expressions = model.at("expressions").get<vector<vector<string>>>();
+    for (auto expr : expressions) {
+        if (expr.front() == "Lmax" || expr.front() == "Dmax" || expr.front() == "Pmax") {
+            process_complex_expressions(expr);
+            continue;
+        }
+        GRBLinExpr lhs_expr = make_constraint(expr.front());
+        GRB_instance->addConstr(lhs_expr, expr[1].front(), stod(expr[2]), expr.back());
+    }
+
+    // addConstr(rho <= p[1][1] + p[0][1] + p[0][2], "P_1");
+    GRBLinExpr lhs_expr = make_constraint(suitable_paths.front() + "- rho");
+    GRB_instance->addConstr(lhs_expr, '>', 0, "P_1");
+
+
+    GRB_instance->update();
+    GRB_instance->optimize();
+    GRB_instance->addConstr(GRB_instance->getVarByName("rho") <= GRB_instance->getVarByName("a2")
+        + GRB_instance->getVarByName("a3") + GRB_instance->getVarByName("b3"), "P_12");
+
+    GRB_instance->update();
+    GRB_instance->optimize();
 }

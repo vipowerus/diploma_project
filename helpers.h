@@ -23,6 +23,8 @@ GRBVar **GRBVars_matrix_malloc(int M, int J);
 
 GRBVar* prepare_operations(const std::vector<std::string>& names, GRBModel &m);
 
+void prepare_coeffs_and_var_names(const std::string& str, std::vector<double> &coeffs, std::vector<std::string> &vars);
+
 GRBLinExpr make_constraint(const std::string &expr, GRBModel *m);
 
 #endif //UNION_HELPERS_H
